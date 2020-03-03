@@ -1,0 +1,232 @@
+---
+title: "Demo for R Visualization"
+author: "Nikky Xiong"
+date: '2020-02-26'
+output:
+  html_document:
+    keep_md: true
+---
+
+#### 1. Debt over time
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggthemes)
+library(ggplot2)
+library(tidyr)
+debt <- read.csv("data/survey_SCF.txt")
+```
+
+```{r}
+year <- debt %>% 
+    select(YEAR, EDN_INST, INCOME, 
+           NH_MORT, VEH_INST, CCBAL) %>% 
+    filter(INCOME != 0) %>% 
+    group_by(YEAR) %>% 
+    summarise(`Student Loan` = mean(EDN_INST/INCOME*100, na.rm = T),
+           Mortgage = mean(NH_MORT/INCOME*100, na.rm = TRUE),
+           Car = mean(VEH_INST/INCOME*100, na.rm = TRUE),
+           Credit = mean(CCBAL/INCOME*100, na.rm = TRUE))
+  
+by_year <- year %>% 
+  gather(`Student Loan`, Mortgage, Car, Credit, 
+         key = `Loan Type`, value = value) 
+```
+
+```{r}
+dplot <- ggplot(by_year, aes(x = YEAR, y = value, 
+                                 fill = `Loan Type`)) + 
+    geom_bar(stat = 'identity', width = 1.5) +
+    xlab('Years') + 
+    scale_y_log10('Ratio of Loans to Income by log, 2016 dollars') + 
+    labs(caption = 'Survey of Consumer Finances (SCF)') +
+    ggtitle('Debt Over Time') +
+    theme_linedraw() +
+    theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
+          legend.text = element_text(size=8),
+          legend.title = element_text(size=8))
+dplot
+```
+
+```{r}
+dplot2 <- ggplot(by_year, aes(x = YEAR, y = value, col = `Loan Type`)) + 
+    geom_line() +
+    geom_point() +
+    xlab('Years') + 
+    scale_y_log10('Ratio of Loans to Income by log, 2016 dollars') + 
+    labs(caption = 'Survey of Consumer Finances (SCF)') +
+    ggtitle('Debt Over Time') +
+    theme_linedraw() +
+    theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
+          legend.text = element_text(size=8),
+          legend.title = element_text(size=8))
+dplot2
+```
+
+I would suggest the second line chart to the editor as it demonstrates the ratio of student loan to incomes increases over time more clearly, especially compared to other types of loans. Therefore, it is safe to draw the conclusion that student loan becomes more important over time.
+
+#### 2. Tell me who you are.
+
+```{r}
+debt16 <- debt %>% filter(YEAR == '2016')
+debt16 <- debt16 %>% select(AGE, AGECL, HHSEX, EDCL, EDUC, RACE,
+                            FAMSTRUCT, HOUSECL, KIDS, MARRIED,
+                            ASSET, DEBT, EDN_INST)
+debt16$HHSEX = ifelse((debt16$HHSEX == 1), 'male', 'female')
+debt16$MARRIED = ifelse((debt16$MARRIED == 1), 'married', 'not married')
+```
+
+```{r}
+pc1 <- ggplot(debt16, aes(x = EDUC, y = EDN_INST, 
+                          color = AGE, shape = MARRIED)) + 
+    geom_point() +
+    xlab('Highest completed grade by head of household') + 
+    ylab('Student Debts, 2016 dollars') + 
+    labs(caption = 'Survey of Consumer Finances (SCF)') +
+    ggtitle('Student Loans vs Education Degree in 2016') +
+    theme_linedraw() +
+    theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
+          legend.text = element_text(size=8),
+          legend.title = element_text(size=8))
+pc1
+```
+
+```{r}
+debt16_new <- debt16 %>% 
+    group_by(EDUC) %>%
+    summarize(StudentLoanM = mean(EDN_INST, na.rm = T)) 
+pc2 <- ggplot(data = debt16_new, aes(x=EDUC, y=StudentLoanM)) +
+    geom_bar(stat = 'identity', width = 0.7) +
+    xlab('Highest completed grade by head of household') + 
+    ylab('Student Debts, 2016 dollars') + 
+    labs(caption = 'Survey of Consumer Finances (SCF)') +
+    ggtitle('Student Loans vs Education Degree in 2016') +
+    theme_linedraw() +
+    theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
+          legend.text = element_text(size=8),
+          legend.title = element_text(size=8))
+pc2
+```
+
+The higher eduation degree that one receives, the more education loan one will get. I will recommend the first scatter plot to the editor as it indicates the increasing student loan along with the increase in education degree, as well as other household indicators like age and marriage status.
+
+#### 3. Wealth and Income Distribution
+
+```{r}
+income16 <- debt %>% filter(YEAR == '2016')
+income16 <- income16 %>% select(AGE, AGECL, HHSEX, EDCL, EDUC, RACE,
+                            FAMSTRUCT, HOUSECL, KIDS, MARRIED,
+                            ASSET, DEBT, EDN_INST, INCCAT, 
+                            "Net worth percentile groups" = NWCAT)
+income16$HHSEX = ifelse((income16$HHSEX == 1), 'male', 'female')
+income16$MARRIED = ifelse((income16$MARRIED == 1), 'married', 'notmarried')
+income16$`Net worth percentile groups`[income16$`Net worth percentile groups`==1] <- "0-24.9"
+income16$`Net worth percentile groups`[income16$`Net worth percentile groups`==2] <- "25-49.9"
+income16$`Net worth percentile groups`[income16$`Net worth percentile groups`==3] <- "50-74.9"
+income16$`Net worth percentile groups`[income16$`Net worth percentile groups`==4] <- "75-89.9"
+income16$`Net worth percentile groups`[income16$`Net worth percentile groups`==5] <- "90-100"
+```
+
+```{r}
+inpc <- ggplot(income16, aes(x = INCCAT, y = EDN_INST, 
+                             color = `Net worth percentile groups`)) + 
+    geom_point() +
+    scale_x_discrete(name ="Income percentile groups", 
+                    limits=c("0-20","20-39.9","40-59.9",
+                             '60-79.9', '80-89.9', '90-100')) +
+    ylab('Student Debts, 2016 dollars') + 
+    labs(caption = 'Survey of Consumer Finances (SCF)') +
+    ggtitle('Student Loans vs Wealth & Income Distribution in 2016') +
+    theme_linedraw() +
+    theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
+          legend.text = element_text(size=8),
+          legend.title = element_text(size=8)) 
+inpc
+```
+
+I would recommend scatter plot for the editor as shown in the graph. The graph shows that each income percentile group has outliers with extremely high student loans. It is hard to tell the relationship between the income percentile groups and the amount of student loans they have, but the new worth percentile groups increases along with income percentile groups.
+
+#### 4. Going broke
+
+```{r}
+gg16 <- debt %>% 
+  filter(YEAR == '2016') %>%
+  filter(BNKRUPLAST5 == 1) %>% 
+  select(FOODHOME, FOODDELV, FOODAWAY, EDN_INST) %>%
+  group_by(EDN_INST) %>% 
+  gather(FOODHOME, FOODDELV, FOODAWAY, 
+         key = `Food Spending`, value = value) 
+```
+
+```{r}
+gg <- ggplot(gg16, aes(x = EDN_INST, y = value, 
+                       color = `Food Spending`)) + 
+    geom_point() +
+    xlab('Student Debts, 2016 dollars') +
+    ylab('Food Spending, 2016 dollars') + 
+    labs(caption = 'Survey of Consumer Finances (SCF)') +
+    ggtitle('Student Loans vs Food Spending after Bankruptcy in 2016') +
+    theme_linedraw() +
+    theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
+          legend.text = element_text(size=8),
+          legend.title = element_text(size=8))
+gg
+```
+
+```{r}
+gg2 <- ggplot(gg16, aes(x = EDN_INST, y = value, 
+                       group = `Food Spending`)) + 
+    geom_boxplot(aes(fill= `Food Spending`)) +
+    xlab('Student Debts, 2016 dollars') +
+    ylab('Food Spending, 2016 dollars') + 
+    labs(caption = 'Survey of Consumer Finances (SCF)') +
+    ggtitle('Student Loans vs Food Spending after Bankruptcy in 2016') +
+    theme_linedraw() +
+    theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
+          legend.text = element_text(size=8),
+          legend.title = element_text(size=8)) +
+  facet_grid(. ~ `Food Spending`)
+gg2
+```
+
+I would recommend the second graph to the editor as it shows more clear that, after declaring bankruptcy, people spend the most on food at home and the least on takeout regardless of their amount of student loans.
+
+#### 5. Make two plots interactive
+
+```{r}
+library(plotly)
+ggplotly(dplot2)
+ggplotly(pc1)
+```
+
+It is important to add interactivity to the line chart that shows types of loans over years as it can show different combination of various loans along with individual loan change over time. It is also important to add interactivity to the scatter plot that shows how the highest completed grade by head of household effects the amount of student loan. The graph will then allow users to observe the seperate effects of the grade on student loan controlling being married or not.
+
+#### 6. Data Table
+
+```{r}
+library(DT)
+library(stringr)
+
+year <- year %>% 
+  select(Year = YEAR,
+         `Percentage of Student Loan to Income` = `Student Loan`,
+         `Percentage of Mortgage Loan to Income` = Mortgage,
+         `Percentage of Vehicle Loan to Income` = Car,
+         `Percentage of Credit Loan to Income` = Credit)
+
+pretty_headers <- gsub("[.]", " ", colnames(year)) %>%
+  str_to_title()
+
+year %>% 
+  datatable(
+    rownames = FALSE,
+    colnames = pretty_headers,
+    filter = list(position = "top"),
+    options = list(language = list(sSearch = "Filter:"))
+  ) %>% 
+  formatStyle('Percentage of Student Loan to Income',  color = 'white', 
+                backgroundColor = 'grey', fontWeight = 'bold')
+```
+
+I made a data table of different types of debt over time and highlighted the column of percentage of student loan to income. Users are able to interact with the data table to filter exact number in the entire chart on the top of the table or to filter a range of data for each column. They can also sort the table by clicking each column name.
